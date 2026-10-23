@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#173b32">
+<title>Mano renginiai</title>
+<style>
+*{box-sizing:border-box}body{font-family:Arial,sans-serif;background:#f1f5f2;margin:0;padding:16px;color:#20352b}header{background:#173b32;color:#fff;padding:22px;border-radius:16px}h1{margin:0}h2{font-size:20px}.card{background:#fff;margin:15px 0;padding:16px;border-radius:13px;box-shadow:0 2px 10px #0000000a}button{padding:11px 14px;border:0;border-radius:9px;background:#173b32;color:#fff;cursor:pointer;margin:4px 4px 4px 0;font-size:15px}.danger{background:#a9362d}label{display:block;margin-top:12px;font-size:14px}input,textarea{display:block;width:100%;padding:11px;margin-top:5px;border:1px solid #ccd8d0;border-radius:8px;font:inherit;background:#fff}.event-title{font-size:18px;font-weight:bold;margin:8px 0}.muted{color:#64756b;font-size:14px}.detail{padding:5px 0;border-bottom:1px solid #edf0ee}.empty{color:#64756b;padding:10px 0}
+</style>
+</head>
+<body>
+<header><h1>Mano renginiai</h1><p>Mano užsakymai ir renginių kalendorius</p></header>
+<section class="card"><h2>Artimiausias renginys</h2><div id="next" class="empty">Renginių dar nėra.</div></section>
+<section class="card"><h2>Visi renginiai</h2><div id="list" class="empty">Čia bus tavo renginiai.</div></section>
+<section class="card"><h2 id="formTitle">Pridėti renginį</h2>
+<form id="form"><input type="hidden" id="id">
+<label>Renginio tipas *</label><input id="type" required placeholder="Vestuvės, gimtadienis...">
+<label>Data *</label><input id="date" type="text" required placeholder="Pvz., 2026 m. lapkričio 14 d.">
+<label>Pradžios laikas</label><input id="time" type="text" placeholder="Pvz., nuo 18 val. iki 02 val.">
+<label>Vieta</label><input id="place" placeholder="Renginio adresas">
+<label>Žmonių skaičius</label><input id="people" type="number" min="0" inputmode="numeric">
+<label>Kontaktinis telefonas</label><input id="phone" type="tel" placeholder="+370...">
+<label>Bendra kaina (€)</label><input id="price" type="number" min="0" step="0.01" inputmode="decimal">
+<label>Avansas (€)</label><input id="deposit" type="number" min="0" step="0.01" inputmode="decimal">
+<label>Pastabos</label><textarea id="notes" rows="3"></textarea>
+<button type="submit">Išsaugoti renginį</button><button type="button" id="cancel">Atšaukti</button>
+</form></section>
+<footer class="muted">Duomenys saugomi šios naršyklės vietinėje atmintyje.</footer>
+<script>
+const KEY='manoRenginiaiV2';
+const fields=['type','date','time','place','people','phone','price','deposit','notes'];
+const $=id=>document.getElementById(id);
+let events=[];
+try{events=JSON.parse(localStorage.getItem(KEY)||'[]');if(!Array.isArray(events))events=[];}catch(e){events=[];}
+function esc(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function dateText(d){if(!d)return 'Data nenurodyta';const p=d.split('-');return p.length===3?`${p[2]}.${p[1]}.${p[0]}`:d;}
+function money(v){return v!==''&&v!=null&&!Number.isNaN(Number(v))?Number(v).toLocaleString('lt-LT',{minimumFractionDigits:2,maximumFractionDigits:2})+' €':'—';}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(events));render();}catch(e){alert('Naršyklė neleido išsaugoti duomenų. Pabandyk atidaryti failą per Chrome.');}}
+function render(){events.sort((a,b)=>(a.date||'9999').localeCompare(b.date||'9999')||(a.time||'').localeCompare(b.time||''));const now=new Date();const today=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;const upcoming=events.filter(e=>e.date>=today);$('next').innerHTML=upcoming.length?`<div class="event-title">${esc(upcoming[0].type)}</div><div>${esc(dateText(upcoming[0].date))}${upcoming[0].time?' · '+esc(upcoming[0].time):''}</div><div class="muted">${esc(upcoming[0].place||'Vieta nenurodyta')}</div>`:'Artimiausių būsimų renginių nėra.';const list=$('list');list.innerHTML='';if(!events.length){list.textContent='Čia bus tavo renginiai.';list.className='empty';return;}list.className='';events.forEach(e=>{const card=document.createElement('article');card.className='card';const title=document.createElement('div');title.className='event-title';title.textContent=dateText(e.date)+' – '+e.type;card.appendChild(title);const details=document.createElement('div');details.innerHTML=[['Laikas',e.time||'—'],['Vieta',e.place||'—'],['Žmonių skaičius',e.people||'—'],['Telefonas',e.phone||'—'],['Bendra kaina',money(e.price)],['Avansas',money(e.deposit)],['Likutis',money(Number(e.price||0)-Number(e.deposit||0))],['Pastabos',e.notes||'—']].map(([k,v])=>`<div class="detail"><strong>${k}:</strong> ${esc(v)}</div>`).join('');card.appendChild(details);const edit=document.createElement('button');edit.textContent='Redaguoti';edit.onclick=()=>editEvent(e.id);card.appendChild(edit);const del=document.createElement('button');del.textContent='Ištrinti';del.className='danger';del.onclick=()=>{if(confirm('Ar tikrai ištrinti šį renginį?')){events=events.filter(x=>x.id!==e.id);save();}};card.appendChild(del);list.appendChild(card);});}
+$('form').addEventListener('submit',ev=>{ev.preventDefault();const id=$('id').value||String(Date.now());const item={id};fields.forEach(f=>item[f]=$(f).value.trim());const i=events.findIndex(e=>e.id===id);if(i>=0)events[i]=item;else events.push(item);save();resetForm();window.scrollTo({top:0,behavior:'smooth'});});
+function editEvent(id){const e=events.find(x=>x.id===id);if(!e)return;$('id').value=e.id;fields.forEach(f=>$(f).value=e[f]||'');$('formTitle').textContent='Redaguoti renginį';$('form').scrollIntoView({behavior:'smooth'});}
+function resetForm(){$('form').reset();$('id').value='';$('formTitle').textContent='Pridėti renginį';}
+$('cancel').addEventListener('click',resetForm);render();
+</script>
+</body></html>
